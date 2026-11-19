@@ -1,26 +1,8 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-    <title>
-        Minha conta - Barbearia Tierno
-    </title>
-    <link
-        rel="stylesheet"
-        href="../css/pages/dashboard/dashboard.css"
-    >
-    <link
-        rel="stylesheet"
-        href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"
-    >
-    <link rel="stylesheet" href="../css/tema.css">
-</head>
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax']);
+    session_start();
+}
 require_once __DIR__ . '/config.php';
 /* VERIFICA LOGIN */
 if (empty($_SESSION['access_token'])) {
@@ -41,7 +23,7 @@ $userId = $usuario['id'];
 $perfilResult = supabaseRequest('GET', '/rest/v1/perfis?select=user_id,nome,tipo_usuario&user_id=eq.' . rawurlencode($userId) . '&limit=1', null, $token);
 $perfil = $perfilResult['data'][0] ?? null;
 /* FALLBACK COM SERVICE ROLE */
-if (!$perfil && defined('SUPABASE_SERVICE_ROLE_KEY')) {
+if (!$perfil && defined('SUPABASE_SERVICE_ROLE_KEY') && SUPABASE_SERVICE_ROLE_KEY !== '') {
     $perfilResult = supabaseRequest('GET', '/rest/v1/perfis?select=user_id,nome,tipo_usuario&user_id=eq.' . rawurlencode($userId) . '&limit=1', null, null, true);
     $perfil = $perfilResult['data'][0] ?? null;
 }
@@ -245,8 +227,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>
+        Minha conta - Barbearia Tierno
+    </title>
+    <link
+        rel="stylesheet"
+        href="../css/pages/dashboard/dashboard.css"
+    >
+    <link
+        rel="stylesheet"
+        href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"
+    >
+    <link rel="stylesheet" href="../css/tema.css">
+</head>
 <body>
-<?php $navRoot = '../'; require __DIR__ . '/partials/navbar.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/navbar.php'; ?>
 <main class="perfil">
     <h1>
         Minha conta
@@ -385,7 +388,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="acoes">
         <a
             class="link-btn"
-            href="../index.php"
+            href="../../index.php"
         >
             Voltar ao início
         </a>
@@ -397,6 +400,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </a>
     </div>
 </main>
-<?php $navRoot = '../'; require __DIR__ . '/partials/footer.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/footer.php'; ?>
 </body>
 </html>

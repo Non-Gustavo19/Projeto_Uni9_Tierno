@@ -1,7 +1,7 @@
 <?php
 // Navegação compartilhada da Barbearia Tierno.
-$navRoot = $navRoot ?? '../';
-$navPhp = ($navRoot === '') ? 'php/' : '';
+$navRoot = $navRoot ?? '../../';
+$navPhp = ($navRoot === '') ? 'assets/php/' : '';
 $navLogado = !empty($_SESSION['access_token']);
 $navPerfilTipo = $tipoUsuario
     ?? $tipo

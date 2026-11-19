@@ -1,16 +1,9 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Avaliações dos clientes - Barbearia Tierno</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="../css/pages/avaliacoes/avaliacoes.css">
-    <link rel="stylesheet" href="../css/tema.css">
-</head>
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+    if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax']);
     session_start();
+}
 }
 require_once __DIR__ . '/config.php';
 date_default_timezone_set('America/Sao_Paulo');
@@ -37,8 +30,18 @@ function dataPublicaAvaliacao(?string $data): string {
     }
 }
 ?>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avaliações dos clientes - Barbearia Tierno</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="../css/pages/avaliacoes/avaliacoes.css">
+    <link rel="stylesheet" href="../css/tema.css">
+</head>
 <body>
-<?php $navRoot = '../'; require __DIR__ . '/partials/navbar.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/navbar.php'; ?>
 <main class="container">
     <header class="cabecalho">
         <h1>O que nossos clientes dizem</h1>
@@ -88,8 +91,8 @@ function dataPublicaAvaliacao(?string $data): string {
         </section>
     <?php endif; ?>
     <div class="acoes"><a class="botao" href="agenda.php"><i class="far fa-calendar-check"></i> Agendar meu corte</a></div>
-    <a class="rodape-link" href="../index.php">Voltar ao início</a>
+    <a class="rodape-link" href="../../index.php">Voltar ao início</a>
 </main>
-<?php $navRoot = '../'; require __DIR__ . '/partials/footer.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/footer.php'; ?>
 </body>
 </html>

@@ -1,17 +1,8 @@
-<!DOCTYPE html>
-<html lang = "pt-br">
-<head>
-<meta charset = "UTF-8">
-<meta name = "viewport"content = "width=device-width, initial-scale=1.0">
-<title>
-PaineldoBarbeiro - Barbearia Tierno
-</title>
-<ink rel = "stylesheet"href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-<link rel = "stylesheet"href = "../css/pages/barbeiro/barbeiro.css">
-<link rel = "stylesheet"href = "../css/tema.css">
-</head>
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax']);
+    session_start();
+}
 require_once __DIR__ . '/config.php';
 /*
  * |--------------------------------------------------------------------------
@@ -813,8 +804,20 @@ if (
     $respostaAgendamentos['data'];
 }
 ?>
-< body >
-< ?php $navRoot = '../';
+<!DOCTYPE html>
+<html lang = "pt-br">
+<head>
+<meta charset = "UTF-8">
+<meta name = "viewport"content = "width=device-width, initial-scale=1.0">
+<title>
+PaineldoBarbeiro - Barbearia Tierno
+</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<link rel = "stylesheet"href = "../css/pages/barbeiro/barbeiro.css">
+<link rel = "stylesheet"href = "../css/tema.css">
+</head>
+<body>
+<?php $navRoot = '../../';
 require __DIR__ . '/partials/navbar.php'; ?>
 <main class="container">
     <h1 class="titulo">
@@ -1263,7 +1266,7 @@ AGENDAMENTOS
         );
     }
 </script>
-<?php $navRoot = '../';
+<?php $navRoot = '../../';
 require __DIR__ . '/partials/footer.php'; ?>
 </body>
 </html>

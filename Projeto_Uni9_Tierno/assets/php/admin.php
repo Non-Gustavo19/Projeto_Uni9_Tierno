@@ -1,23 +1,8 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-    <title>
-        Painel Administrativo - Barbearia Tierno
-    </title>
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
-    >
-    <link rel="stylesheet" href="../css/pages/admin/admin.css">
-    <link rel="stylesheet" href="../css/tema.css">
-</head>
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax']);
+    session_start();
+}
 require_once __DIR__ . '/config.php';
 /*
 |--------------------------------------------------------------------------
@@ -59,19 +44,13 @@ $_SESSION['usuario'] = $usuarioLogado;
 | Nunca envie essa chave para o navegador.
 |
 */
-$perfilLogadoResult = supabaseRequest(
-    'GET',
-    '/rest/v1/perfis'
-    . '?select=user_id,nome,tipo_usuario'
-    . '&user_id=eq.'
-    . rawurlencode($idLogado)
-    . '&limit=1',
-    null,
-    null,
-    true
-);
-$perfilLogado =
-    $perfilLogadoResult['data'][0] ?? null;
+$caminhoPerfilAdmin = '/rest/v1/perfis?select=user_id,nome,tipo_usuario&user_id=eq.' . rawurlencode($idLogado) . '&limit=1';
+$perfilLogadoResult = supabaseRequest('GET', $caminhoPerfilAdmin, null, $token);
+$perfilLogado = $perfilLogadoResult['data'][0] ?? null;
+if (!$perfilLogado && defined('SUPABASE_SERVICE_ROLE_KEY') && SUPABASE_SERVICE_ROLE_KEY !== '') {
+    $perfilLogadoResult = supabaseRequest('GET', $caminhoPerfilAdmin, null, null, true);
+    $perfilLogado = $perfilLogadoResult['data'][0] ?? null;
+}
 /*
 |--------------------------------------------------------------------------
 | VERIFICA ADMIN
@@ -147,71 +126,73 @@ function mensagemErroSupabase(
 | CARREGA USUÁRIOS
 |--------------------------------------------------------------------------
 */
-function carregarUsuarios(): array
+function carregarUsuarios(?string &$erroCarregamento = null): array
 {
-    /*
-    |--------------------------------------------------------------------------
-    | BUSCA PERFIS
-    |--------------------------------------------------------------------------
-    */
-    $p = supabaseRequest(
-        'GET',
-        '/rest/v1/perfis'
-        . '?select=user_id,nome,tipo_usuario'
-        . '&order=nome.asc',
-        null,
-        null,
-        true
-    );
-    $perfis = $p['data'] ?? [];
-    if (!is_array($perfis)) {
+    $erroCarregamento = null;
+    if (!defined('SUPABASE_SERVICE_ROLE_KEY') || SUPABASE_SERVICE_ROLE_KEY === '') {
+        $erroCarregamento = 'A chave SUPABASE_SERVICE_ROLE_KEY não está configurada no servidor. Ela é necessária para listar todos os usuários com segurança. Configure essa variável de ambiente e reinicie o servidor PHP.';
         return [];
     }
-    /*
-    |--------------------------------------------------------------------------
-    | BUSCA USUÁRIOS DO AUTH
-    |--------------------------------------------------------------------------
-    */
-    $a = supabaseRequest(
+    $authResult = supabaseRequest(
         'GET',
         '/auth/v1/admin/users?per_page=1000&page=1',
         null,
         null,
         true
     );
-    $authUsers =
-    $a['data']['users'] ?? [];
-    $mapaUsuarios = [];
-    if (is_array($authUsers)) {
-        foreach ($authUsers as $u) {
-            if (!empty($u['id'])) {
-                $mapaUsuarios[$u['id']] = $u;
-            }
+    if ($authResult['status'] < 200 || $authResult['status'] >= 300) {
+        $erroCarregamento = 'Não foi possível consultar os usuários do Supabase Auth (HTTP ' . (int)$authResult['status'] . '): ' . mensagemErroSupabase($authResult, 'Verifique a chave service_role e as permissões do projeto.');
+        return [];
+    }
+    $authUsers = $authResult['data']['users'] ?? null;
+    if (!is_array($authUsers)) {
+        $erroCarregamento = 'O Supabase respondeu, mas não retornou a lista de usuários no formato esperado.';
+        return [];
+    }
+    $perfisResult = supabaseRequest(
+        'GET',
+        '/rest/v1/perfis?select=user_id,nome,tipo_usuario&order=nome.asc',
+        null,
+        null,
+        true
+    );
+    if ($perfisResult['status'] < 200 || $perfisResult['status'] >= 300) {
+        $erroCarregamento = 'Não foi possível consultar a tabela public.perfis (HTTP ' . (int)$perfisResult['status'] . '): ' . mensagemErroSupabase($perfisResult, 'Verifique se a tabela existe e se a chave service_role está correta.');
+        return [];
+    }
+    $perfis = $perfisResult['data'];
+    if (!is_array($perfis)) {
+        $erroCarregamento = 'A tabela public.perfis retornou dados em formato inesperado.';
+        return [];
+    }
+    $mapaPerfis = [];
+    foreach ($perfis as $perfil) {
+        if (!empty($perfil['user_id'])) {
+            $mapaPerfis[$perfil['user_id']] = $perfil;
         }
     }
-    /*
-    |--------------------------------------------------------------------------
-    | JUNTA PERFIL + AUTH
-    |--------------------------------------------------------------------------
-    */
-    foreach ($perfis as &$perfil) {
-        $u =
-        $mapaUsuarios[$perfil['user_id']]
-        ?? [];
-        $perfil['email'] =
-        $u['email'] ?? '';
-        $perfil['telefone'] =
-        $u['user_metadata']['phone']
-        ?? '';
+    $usuarios = [];
+    foreach ($authUsers as $usuario) {
+        if (empty($usuario['id'])) {
+            continue;
+        }
+        $id = $usuario['id'];
+        $perfil = $mapaPerfis[$id] ?? [];
+        $metadata = $usuario['user_metadata'] ?? [];
+        $usuarios[] = [
+            'user_id' => $id,
+            'nome' => $perfil['nome'] ?? $metadata['name'] ?? $metadata['full_name'] ?? '',
+            'tipo_usuario' => $perfil['tipo_usuario'] ?? 'cliente',
+            'email' => $usuario['email'] ?? '',
+            'telefone' => $metadata['phone'] ?? ''
+        ];
     }
-    unset($perfil);
-    /*
-    |--------------------------------------------------------------------------
-    | RETORNA USUÁRIOS
-    |--------------------------------------------------------------------------
-    */
-    return $perfis;
+    usort($usuarios, static function ($a, $b) {
+        return strcasecmp((string)$a['nome'], (string)$b['nome']);
+    });
+    return $usuarios;
 }
+
 /*
 |--------------------------------------------------------------------------
 | PROCESSAMENTO POST
@@ -751,11 +732,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 | CARREGA USUÁRIOS NOVAMENTE
 |--------------------------------------------------------------------------
 */
-$usuarios =
-    carregarUsuarios();
+$erroCarregamentoUsuarios = null;
+$usuarios = carregarUsuarios($erroCarregamentoUsuarios);
 ?>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>
+        Painel Administrativo - Barbearia Tierno
+    </title>
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    >
+    <link rel="stylesheet" href="../css/pages/admin/admin.css">
+    <link rel="stylesheet" href="../css/tema.css">
+</head>
 <body>
-<?php $navRoot = '../'; require __DIR__ . '/partials/navbar.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/navbar.php'; ?>
 <main class="container">
     <h1 class="titulo">
         Painel Administrativo
@@ -782,6 +781,11 @@ $usuarios =
     <?php if ($erro !== ''): ?>
         <div class="alert bad">
             <?= h($erro) ?>
+        </div>
+    <?php endif; ?>
+    <?php if ($erroCarregamentoUsuarios !== null): ?>
+        <div class="alert bad">
+            <strong>Falha ao carregar usuários:</strong> <?= h($erroCarregamentoUsuarios) ?>
         </div>
     <?php endif; ?>
     <div class="table-wrap">
@@ -985,7 +989,7 @@ $usuarios =
                 <?php if (!$usuarios): ?>
                     <tr>
                         <td colspan="6">
-                            Nenhum perfil encontrado.
+                            Nenhum usuário encontrado no Auth do Supabase. Se você acabou de cadastrar uma conta, confira se ela aparece em Authentication &gt; Users e se a tabela public.perfis possui o perfil correspondente.
                         </td>
                     </tr>
                 <?php endif; ?>
@@ -1009,13 +1013,13 @@ $usuarios =
         </a>
         <a
             class="link"
-            href="../index.php"
+            href="../../index.php"
         >
             <i class="fas fa-home"></i>
             Página inicial
         </a>
     </div>
 </main>
-<?php $navRoot = '../'; require __DIR__ . '/partials/footer.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/footer.php'; ?>
 </body>
 </html>

@@ -1,15 +1,8 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Avaliar meus cortes - Barbearia Tierno</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="../css/pages/minhas-avaliacoes/minhas-avaliacoes.css">
-    <link rel="stylesheet" href="../css/tema.css">
-</head>
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax']);
+    session_start();
+}
 require_once __DIR__ . '/config.php';
 date_default_timezone_set('America/Sao_Paulo');
 if (empty($_SESSION['access_token'])) {
@@ -71,17 +64,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'avaliar
     $comentario = trim((string)($_POST['comentario'] ?? ''));
     if (!hash_equals($csrf, $csrfInformado)) {
         $erro = 'Sua sessão expirou. Atualize a página e tente novamente.';
-    } elseif (!ctype_digit($agendamentoId) || (int)$agendamentoId < 1) {
+    } elseif (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $agendamentoId)) {
         $erro = 'Atendimento inválido.';
     } elseif ($nota === false || $nota < 1 || $nota > 5) {
         $erro = 'Selecione uma nota de 1 a 5 estrelas.';
     } elseif ((preg_match_all('/./us', $comentario, $caracteresComentario) ?: 0) > 1000) {
         $erro = 'O comentário deve ter no máximo 1.000 caracteres.';
     } else {
-        $filtroDono = 'or=(cliente_id.eq.' . rawurlencode($userId) . ',user_id.eq.' . rawurlencode($userId) . ')';
+        $filtroDono = 'user_id=eq.' . rawurlencode($userId);
         $agendamentoResp = supabaseRequest(
             'GET',
-            '/rest/v1/agendamentos?select=id,cliente_id,user_id,barbeiro_id,status'
+            '/rest/v1/agendamentos?select=id,user_id,barbeiro_id,status'
             . '&id=eq.' . rawurlencode($agendamentoId)
             . '&' . $filtroDono
             . '&status=eq.concluido&limit=1',
@@ -102,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'avaliar
                 $erro = 'Esse corte já recebeu uma avaliação. Cada atendimento pode ser avaliado uma única vez.';
             } else {
                 $novaAvaliacao = [
-                    'agendamento_id' => (int)$agendamentoId,
+                    'agendamento_id' => $agendamentoId,
                     'cliente_id' => $userId,
                     'barbeiro_id' => $agendamento['barbeiro_id'] ?? null,
                     'nota' => (int)$nota,
@@ -122,10 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'avaliar
     }
 }
 // Lista somente os atendimentos concluídos do cliente conectado.
-$filtroDono = 'or=(cliente_id.eq.' . rawurlencode($userId) . ',user_id.eq.' . rawurlencode($userId) . ')';
+$filtroDono = 'user_id=eq.' . rawurlencode($userId);
 $agendamentosResp = supabaseRequest(
     'GET',
-    '/rest/v1/agendamentos?select=id,servico,servico_id,barbeiro_id,data_hora,data,hora,status'
+    '/rest/v1/agendamentos?select=id,servico,barbeiro_id,data_hora,status'
     . '&' . $filtroDono
     . '&status=eq.concluido&order=data_hora.desc.nullslast,id.desc',
     null,
@@ -151,14 +144,6 @@ $servicosCache = [];
 $barbeirosCache = [];
 foreach ($agendamentos as &$agendamento) {
     $agendamento['servico_exibicao'] = trim((string)($agendamento['servico'] ?? ''));
-    $servicoId = (string)($agendamento['servico_id'] ?? '');
-    if ($agendamento['servico_exibicao'] === '' && ctype_digit($servicoId)) {
-        if (!array_key_exists($servicoId, $servicosCache)) {
-            $r = supabaseRequest('GET', '/rest/v1/servicos?select=nome&id=eq.' . rawurlencode($servicoId) . '&limit=1', null, $token);
-            $servicosCache[$servicoId] = $r['data'][0]['nome'] ?? 'Serviço';
-        }
-        $agendamento['servico_exibicao'] = $servicosCache[$servicoId];
-    }
     if ($agendamento['servico_exibicao'] === '') {
         $agendamento['servico_exibicao'] = 'Corte/serviço';
     }
@@ -172,8 +157,18 @@ foreach ($agendamentos as &$agendamento) {
 }
 unset($agendamento);
 ?>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avaliar meus cortes - Barbearia Tierno</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="../css/pages/minhas-avaliacoes/minhas-avaliacoes.css">
+    <link rel="stylesheet" href="../css/tema.css">
+</head>
 <body>
-<?php $navRoot = '../'; require __DIR__ . '/partials/navbar.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/navbar.php'; ?>
 <main class="container">
     <header class="cabecalho">
         <h1><i class="fas fa-star"></i> Avalie seus cortes</h1>
@@ -230,6 +225,6 @@ unset($agendamento);
     </section>
     <a class="voltar" href="dashboard.php"><i class="fas fa-arrow-left"></i> Voltar para minha conta</a>
 </main>
-<?php $navRoot = '../'; require __DIR__ . '/partials/footer.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/footer.php'; ?>
 </body>
 </html>

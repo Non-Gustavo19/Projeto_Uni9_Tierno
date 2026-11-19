@@ -5,9 +5,9 @@ date_default_timezone_set('America/Sao_Paulo');
  * | DADOS DO SUPABASE
  * |--------------------------------------------------------------------------
  */
-define('SUPABASE_URL', 'https://syyojqrkqwadelibimmc.supabase.co');
-define('SUPABASE_KEY', 'sb_publishable_eIkBJneM0zfSdwXuwcZnRw_vNrrldWy');
-define('SUPABASE_SERVICE_ROLE_KEY', 'sb_secret_8DlEnVRSBTeq1lw-HJtJ6A_N4ZMkC0m');
+define('SUPABASE_URL', rtrim((string)(getenv('SUPABASE_URL') ?: 'https://syyojqrkqwadelibimmc.supabase.co'), '/'));
+define('SUPABASE_KEY', (string)(getenv('SUPABASE_KEY') ?: 'sb_publishable_eIkBJneM0zfSdwXuwcZnRw_vNrrldWy'));
+define('SUPABASE_SERVICE_ROLE_KEY', 'sb_secret_tyOFmCVKtxhEvO7u97SS4A_ItVAHM1u');
 /*
  * |--------------------------------------------------------------------------
  * | ESCAPA HTML
@@ -129,89 +129,51 @@ if (!function_exists('supabaseRequest')) {
         }
         /*
          * |--------------------------------------------------------------------------
-         * | CURL
+         * | EXECUTA REQUISIÇÃO (cURL ou stream, conforme extensões disponíveis)
          * |--------------------------------------------------------------------------
          */
-        $curl =
-        curl_init($url);
-        $options = [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST =>
-            strtoupper($method),
-            CURLOPT_HTTPHEADER =>
-            $headers,
-            CURLOPT_CONNECTTIMEOUT =>
-            10,
-            CURLOPT_TIMEOUT =>
-            30
-        ];
-        /*
-         * |--------------------------------------------------------------------------
-         * | ENVIA JSON
-         * |--------------------------------------------------------------------------
-         */
+        $json = null;
         if ($data !== null) {
-            $json = json_encode(
-                $data,
-                JSON_UNESCAPED_UNICODE
-                | JSON_UNESCAPED_SLASHES
-            );
+            $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             if ($json === false) {
-                return [
-                    'status' => 0,
-                    'data' => [],
-                    'raw' => '',
-                    'error' =>
-                    'Erro ao converter os dados para JSON.'
-                ];
+                return ['status' => 0, 'data' => [], 'raw' => '', 'error' => 'Erro ao converter os dados para JSON.'];
             }
-            $options[
-                CURLOPT_POSTFIELDS
-            ] = $json;
         }
-        /*
-         * |--------------------------------------------------------------------------
-         * | EXECUTA
-         * |--------------------------------------------------------------------------
-         */
-        curl_setopt_array(
-            $curl,
-            $options
-        );
-        $raw =
-        curl_exec($curl);
-        /*
-         * |--------------------------------------------------------------------------
-         * | STATUS HTTP
-         * |--------------------------------------------------------------------------
-         */
-        $status =
-        curl_getinfo(
-            $curl,
-            CURLINFO_HTTP_CODE
-        );
-        /*
-         * |--------------------------------------------------------------------------
-         * | ERRO CURL
-         * |--------------------------------------------------------------------------
-         */
-        $error =
-        curl_error($curl);
-        curl_close($curl);
-        /*
-         * |--------------------------------------------------------------------------
-         * | FALHA DE CONEXÃO
-         * |--------------------------------------------------------------------------
-         */
-        if ($raw === false) {
-            return [
-                'status' => 0,
-                'data' => [],
-                'raw' => '',
-                'error' =>
-                $error
-                ?: 'Falha na conexão com o Supabase.'
+        $raw = false;
+        $status = 0;
+        $error = '';
+        if (function_exists('curl_init')) {
+            $curl = curl_init($url);
+            $options = [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CUSTOMREQUEST => strtoupper($method),
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT => 30
             ];
+            if ($json !== null) $options[CURLOPT_POSTFIELDS] = $json;
+            curl_setopt_array($curl, $options);
+            $raw = curl_exec($curl);
+            $status = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $error = curl_error($curl);
+            curl_close($curl);
+        } else {
+            $headerText = implode("\r\n", $headers);
+            $context = stream_context_create(['http' => [
+                'method' => strtoupper($method),
+                'header' => $headerText,
+                'content' => $json ?? '',
+                'timeout' => 30,
+                'ignore_errors' => true
+            ]]);
+            $raw = @file_get_contents($url, false, $context);
+            foreach (($http_response_header ?? []) as $responseHeader) {
+                if (preg_match('/^HTTP\/\S+\s+(\d{3})/', $responseHeader, $match)) $status = (int)$match[1];
+            }
+            if ($raw === false) $error = 'Falha na conexão HTTP com o Supabase. Verifique a rede e allow_url_fopen.';
+        }
+        if ($raw === false) {
+            return ['status' => 0, 'data' => [], 'raw' => '', 'error' => $error ?: 'Falha na conexão com o Supabase.'];
         }
         /*
          * |--------------------------------------------------------------------------

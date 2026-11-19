@@ -1,7 +1,7 @@
 <?php
 // Rodapé compartilhado; usa o mesmo prefixo de links da navegação.
-$footerRoot = $navRoot ?? '../';
-$footerPhp = ($footerRoot === '') ? 'php/' : '';
+$footerRoot = $navRoot ?? '../../';
+$footerPhp = ($footerRoot === '') ? 'assets/php/' : '';
 $footerHome = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'index.php';
 $footerAbout = $footerHome ? '#sobre' : $footerRoot . 'index.php#sobre';
 $footerContact = $footerHome ? '#contatos' : $footerRoot . 'index.php#contatos';

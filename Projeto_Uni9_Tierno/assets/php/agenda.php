@@ -1,15 +1,8 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agendamento - Barbearia Tierno</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="../css/pages/agenda/agenda.css">
-    <link rel="stylesheet" href="../css/tema.css">
-</head>
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax']);
+    session_start();
+}
 require_once __DIR__ . '/config.php';
 date_default_timezone_set('America/Sao_Paulo');
 $timezone = new DateTimeZone('America/Sao_Paulo');
@@ -105,10 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'agendar
                     'POST',
                     '/rest/v1/agendamentos',
                     [
-                        'cliente_id' => $userId,
+                        'user_id' => $userId,
                         'nome_cliente' => $nomeCliente,
                         'barbeiro_id' => $barbeiroId,
-                        'servico_id' => (int)$servicoId,
+                        'servico' => (string)($servico['nome'] ?? 'Corte/serviço'),
                         'data_hora' => $dataHoraIso,
                         'status' => 'agendado'
                     ],
@@ -176,8 +169,18 @@ if (
     }
 }
 ?>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendamento - Barbearia Tierno</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="../css/pages/agenda/agenda.css">
+    <link rel="stylesheet" href="../css/tema.css">
+</head>
 <body>
-<?php $navRoot = '../'; require __DIR__ . '/partials/navbar.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/navbar.php'; ?>
 <main class="container">
     <h1>Agende seu horário</h1>
     <p class="nota">Você escolhe o serviço, barbeiro, data e um horário liberado pelo barbeiro.</p>
@@ -239,6 +242,6 @@ if (
         </section>
     <?php endif; ?>
 </main>
-<?php $navRoot = '../'; require __DIR__ . '/partials/footer.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/footer.php'; ?>
 </body>
 </html>

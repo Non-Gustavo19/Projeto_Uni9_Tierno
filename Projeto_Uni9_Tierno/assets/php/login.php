@@ -1,15 +1,8 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Barbearia Tierno</title>
-    <link rel="stylesheet" href="../css/pages/login/login.css">
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
-    <link rel="stylesheet" href="../css/tema.css">
-</head>
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax']);
+    session_start();
+}
 require_once __DIR__ . '/config.php';
 $modo = $_POST['modo'] ?? $_GET['modo'] ?? 'cadastro';
 $mensagem = '';
@@ -42,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     session_regenerate_id(true);
                     $_SESSION['access_token'] = $dados['access_token'];
                     $_SESSION['usuario'] = $dados['user'] ?? [];
-                    header('Location: ../index.php');
+                    header('Location: ../../index.php');
                     exit();
                 }
                 $mensagem = 'Cadastro realizado! Verifique seu email para confirmar a conta antes de entrar.';
@@ -59,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             $_SESSION['access_token'] = $resultado['data']['access_token'];
             $_SESSION['usuario'] = $resultado['data']['user'] ?? [];
-            header('Location: ../index.php');
+            header('Location: ../../index.php');
             exit();
         }
         $mensagem = $resultado['data']['msg']
@@ -68,8 +61,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Barbearia Tierno</title>
+    <link rel="stylesheet" href="../css/pages/login/login.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+    <link rel="stylesheet" href="../css/tema.css">
+</head>
 <body class="login-page <?= $modo === 'login' ? 'sign-in-js' : 'sign-up-js' ?>">
-<?php $navRoot = '../'; require __DIR__ . '/partials/navbar.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/navbar.php'; ?>
 <div class="container">
     <div class="content first-content">
         <div class="first-column">
@@ -116,6 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </div>
-<?php $navRoot = '../'; require __DIR__ . '/partials/footer.php'; ?>
+<?php $navRoot = '../../'; require __DIR__ . '/partials/footer.php'; ?>
 </body>
 </html>
